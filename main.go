@@ -34,7 +34,7 @@ func main() {
 	router := gin.Default()
 	router.GET("/players", getPlayers)
 	router.POST("/players", setPlayer)
-	router.GET("/books/:name", getPlayer)
+	router.GET("/players/:name", getPlayer)
 	router.Run("localhost:8080")
 }
 
