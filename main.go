@@ -1,13 +1,18 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"reflect"
+	"sort"
+	str "strconv"
 
 	"github.com/gin-gonic/gin"
+	_ "github.com/spf13/cobra"
 )
 
 type player struct {
+	Id    string `json:"id"`
 	Name  string `json:"name"`
 	Age   int    `json:"age"`
 	Score int    `json:"score"`
@@ -23,8 +28,9 @@ type answer struct {
 	Valid      bool
 }
 
-func createPlayer(name string, age int, score int) player {
+func createPlayer(id string, name string, age int, score int) player {
 	p := player{
+		Id:    id,
 		Name:  name,
 		Age:   age,
 		Score: score,
@@ -51,15 +57,15 @@ func createAnswer(text string, valid bool) answer {
 
 func initData() {
 
-	players = append(players, createPlayer("Clayton", 28, 60))
-	players = append(players, createPlayer("Giancarl", 27, 40))
-	players = append(players, createPlayer("Emma", 33, 100))
-	players = append(players, createPlayer("Paulinha", 30, 80))
+	players = append(players, createPlayer("000001M", "Clayton", 28, 30))
+	players = append(players, createPlayer("000002M", "Giancarl", 27, 10))
+	players = append(players, createPlayer("000003M", "Emma", 33, 90))
+	players = append(players, createPlayer("000004M", "Paulinha", 30, 50))
 
 	var answersGroupA []answer = []answer{createAnswer("Italian", false), createAnswer("Arabic", false), createAnswer("Maltese", true)}
 	var answersGroupB []answer = []answer{createAnswer("Lira", false), createAnswer("Pound", false), createAnswer("Euro", true)}
 	var answersGroupC []answer = []answer{createAnswer("Mediterranean ", true), createAnswer("Dead Sea", false), createAnswer("Sea of Samsara", false)}
-	var answersGroupD []answer = []answer{createAnswer("3", true), createAnswer("1", false), createAnswer("4", false)}
+	var answersGroupD []answer = []answer{createAnswer("three", true), createAnswer("one", false), createAnswer("four", false)}
 	var answersGroupE []answer = []answer{createAnswer("Blue,White and Red", false), createAnswer("White and Red", true), createAnswer("Red and White", false)}
 
 	questions = append(questions, createQuestion("What ls the national language of Malta?", answersGroupA))
@@ -72,10 +78,11 @@ func initData() {
 
 var players []player
 var questions []question
+var emptyPlayer player
 
 func main() {
-
 	initData()
+	startQuiz()
 	router := gin.Default()
 	router.GET("/players", getPlayers)
 	router.POST("/players", setPlayer)
@@ -83,10 +90,114 @@ func main() {
 	router.Run("localhost:8080")
 }
 
+func startQuiz() {
+	var idInput string
+	var nameInput string
+	var ageInput string
+	var newPlayer player
+	var retry bool = false
+
+	fmt.Println("Welcome to the Quiz, Kindly enter your ID")
+	fmt.Scan(&idInput)
+	check, newPlayer := checkExistingPlayer(idInput)
+	if check {
+		fmt.Printf("Welcome back %v .", newPlayer.Name)
+		fmt.Println()
+	}
+	if !check {
+		fmt.Println("Kindly enter your name")
+		fmt.Scan(&nameInput)
+		for !retry {
+			fmt.Println("Kindly enter your age")
+			fmt.Scan(&ageInput)
+			convertedAge, err := str.Atoi(ageInput)
+			if err != nil {
+				fmt.Println("Your age input was incorrect.")
+			} else {
+				newPlayer = createPlayer(idInput, nameInput, convertedAge, 0)
+				players = append(players, newPlayer)
+				retry = true
+			}
+		}
+
+	}
+	fmt.Println("Good luck on your Quiz!")
+	fmt.Println()
+	questionQuiz(newPlayer)
+}
+
+func questionQuiz(currentplayer player) {
+	var answersGroup []answer
+	var answerInput answer
+	var input int
+	var check bool = true
+	var score int
+	fmt.Println("Kindly select one answer for each question.")
+
+	for i := 0; i < len(questions); i++ {
+		check = true
+		fmt.Println(questions[i].QuestionText)
+		fmt.Println()
+		for b := 0; b < len(questions[i].Answers); b++ {
+			fmt.Println(b+1, ".", questions[i].Answers[b].AnswerText)
+		}
+		for check {
+			fmt.Scan(&input)
+			if input > len(questions[i].Answers) || input < 0 {
+				fmt.Println("Invalid Answer. Try again")
+			} else {
+				answerInput = createAnswer(questions[i].Answers[input-1].AnswerText, questions[i].Answers[input-1].Valid)
+				answersGroup = append(answersGroup, answerInput)
+				if questions[i].Answers[input-1].Valid {
+					score += (100 / len(questions))
+				}
+				check = false
+			}
+		}
+
+		fmt.Println()
+	}
+
+	fmt.Println("End of Quiz.")
+	fmt.Printf("Your score is %v and your rank is %v.", score, generateRank(score, currentplayer))
+	fmt.Println()
+	fmt.Println("Your answers are : ")
+	for i := 0; i < len(answersGroup); i++ {
+		fmt.Println(answersGroup[i].AnswerText + "," + str.FormatBool(answersGroup[i].Valid))
+	}
+
+	idx := sort.Search(len(players), func(i int) bool {
+		return string(players[i].Name) >= currentplayer.Name
+	})
+	players[idx+1].Score = score
+}
+
+func generateRank(score int, currentplayer player) int {
+	var rank int = len(players)
+
+	for i := 0; i < len(players); i++ {
+		if score > players[i].Score {
+			if players[i].Id != currentplayer.Id {
+				rank -= 1
+			}
+		}
+	}
+	return rank
+}
+
+func checkExistingPlayer(id string) (bool, player) {
+	for i := 0; i < len(players); i++ {
+		if players[i].Id == id {
+			return true, players[i]
+		}
+	}
+	return false, emptyPlayer
+}
+
 func getPlayers(c *gin.Context) {
 	returnedPlayers := players
 
-	if len(returnedPlayers) < 0 {
+	if len(returnedPlayers) <= 0 {
 		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "There was an issue returning the players"})
 		return
 	}
