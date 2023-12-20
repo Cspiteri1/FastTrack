@@ -1,5 +1,5 @@
 /*
-Copyright © 2023 NAME HERE <EMAIL ADDRESS>
+Package cmd provides command-line functionality for the QuizTerminal application.
 */
 package cmd
 
@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // rootCmd represents the base command when called without any subcommands
@@ -41,6 +42,23 @@ var (
 			startQuiz()
 		},
 	}
+	getPlayersCmd = &cobra.Command{
+		Use:   "getPlayers",
+		Short: "Returns all information regards the existing players",
+		Long:  `Calls the API to return all information regarding the existing players in memory`,
+		Run: func(cmd *cobra.Command, args []string) {
+			getPlayers()
+		},
+	}
+	getQuestionsCmd = &cobra.Command{
+		Use:   "getQuestions",
+		Short: "Returns all information regarding the Quiz questions",
+		Long:  `Calls the API to return all information regarding the Quiz questions`,
+		Run: func(cmd *cobra.Command, args []string) {
+			retieveQuestions()
+		},
+	}
+	baseURL string
 )
 
 type player struct {
@@ -61,10 +79,10 @@ type answer struct {
 }
 
 var players []player
-var emptyPlayer player
 
+// createPlayer creates a new player and sends a POST request to the API.
 func createPlayer(id string, name string, age int, score int) (player, bool) {
-	apiUrl := "http://localhost:8080/players/"
+	apiUrl := baseURL + "players/"
 	var returnedPlayer player
 
 	client := resty.New()
@@ -92,6 +110,7 @@ func createPlayer(id string, name string, age int, score int) (player, bool) {
 	}
 }
 
+// createAnswer creates a new answer object.
 func createAnswer(text string, valid bool) answer {
 	a := answer{
 		AnswerText: text,
@@ -100,6 +119,7 @@ func createAnswer(text string, valid bool) answer {
 	return a
 }
 
+// startQuiz initiates the quiz process, allowing the user to participate.
 func startQuiz() {
 	var idInput string
 	var nameInput string
@@ -131,7 +151,7 @@ func startQuiz() {
 		}
 
 		if !succesfulResponse {
-			fmt.Println("There is an issue adding your user to the system. Please try again later.")
+			log.Println("There is an issue adding your user to the system. Please try again later.")
 			return
 		}
 	}
@@ -141,6 +161,7 @@ func startQuiz() {
 
 }
 
+// questionQuiz presents questions to the user and collects their answers.
 func questionQuiz(currentplayer player) {
 	var questions []question
 	var answersGroup []answer
@@ -186,14 +207,31 @@ func questionQuiz(currentplayer player) {
 			fmt.Println(answersGroup[i].AnswerText + "," + str.FormatBool(answersGroup[i].Valid))
 		}
 	} else {
-		fmt.Println("There was an error submitting your Score. Please try again later.")
+		log.Println("There was an error submitting your Score. Please try again later.")
 	}
 
 }
 
+func getPlayers() {
+	apiUrl := baseURL + "players"
+	response, err := http.Get(apiUrl)
+	if err != nil {
+		log.Println("An error was encountered during the retreival of the player's ranking: ", err)
+	} else {
+		data, err := io.ReadAll(response.Body)
+		if err != nil {
+			log.Println("Unable to retreive rankings data")
+		} else {
+			json.Unmarshal([]byte(data), &players)
+			fmt.Println(players)
+		}
+	}
+}
+
+// updatePlayerScore updates the player's score by sending a PATCH request to the API.
 func updatePlayerScore(playerinput player, score int) bool {
 
-	apiUrl := "http://localhost:8080/players/"
+	apiUrl := baseURL + "players/"
 
 	client := resty.New()
 	payload := map[string]interface{}{
@@ -208,28 +246,29 @@ func updatePlayerScore(playerinput player, score int) bool {
 		Patch(apiUrl)
 
 	if err != nil {
-		log.Fatal("Encountered error while updating player details: ", err)
+		log.Println("Encountered error while updating player details: ", err)
 	}
 
 	if resp.StatusCode() == 200 {
 		return true
 	} else {
-		log.Fatal("Encountered error while updating player details: ", err)
+		log.Println("Encountered error while updating player details: ", err)
 		return false
 	}
 }
 
+// getRank retrieves the player's rank from the API.
 func getRank(playerId string) int {
-	apiUrl := "http://localhost:8080/players-rank/" + playerId
+	apiUrl := baseURL + "players-rank/" + playerId
 	response, err := http.Get(apiUrl)
 	var rank int
 	if err != nil {
-		log.Fatal("An error was encountered during the retreival of the player's ranking: ", err)
+		log.Println("An error was encountered during the retreival of the player's ranking: ", err)
 		return 0
 	} else {
 		data, err := io.ReadAll(response.Body)
 		if err != nil {
-			log.Fatal("Unable to retreive rankings data")
+			log.Println("Unable to retreive rankings data")
 			return 0
 		} else {
 			json.Unmarshal([]byte(data), &rank)
@@ -238,17 +277,30 @@ func getRank(playerId string) int {
 	}
 }
 
+func retieveQuestions() {
+	retrievedQuestions := getQuestions()
+
+	for i := 0; i < len(retrievedQuestions); i++ {
+		fmt.Println(retrievedQuestions[i].QuestionText)
+		fmt.Println()
+		for b := 0; b < len(retrievedQuestions[i].Answers); b++ {
+			fmt.Println(b+1, ".", retrievedQuestions[i].Answers[b].AnswerText)
+		}
+	}
+}
+
+// getQuestions retrieves the list of questions from the API.
 func getQuestions() []question {
 	var questions []question
-	apiUrl := "http://localhost:8080/questions/"
+	apiUrl := baseURL + "questions/"
 	response, err := http.Get(apiUrl)
 	if err != nil {
-		log.Fatal("An error was encountered during the retreival of the questions: ", err)
+		log.Println("An error was encountered during the retreival of the questions: ", err)
 		return nil
 	} else {
 		data, err := io.ReadAll(response.Body)
 		if err != nil {
-			log.Fatal("Unable to retreive questions data")
+			log.Println("Unable to retreive questions data")
 			return nil
 		} else {
 			json.Unmarshal([]byte(data), &questions)
@@ -257,17 +309,18 @@ func getQuestions() []question {
 	}
 }
 
+// checkExistingPlayer checks if a player with the given ID exists in the API.
 func checkExistingPlayer(id string) (bool, player) {
-	apiUrl := "http://localhost:8080/players/" + id
+	apiUrl := baseURL + "players/" + id
 	var returnedPlayer player
 	response, err := http.Get(apiUrl)
 	if err != nil {
-		log.Fatal("Quiz Api is unavailable.Try again later")
+		log.Println("Quiz Api is unavailable.Try again later")
 		return false, returnedPlayer
 	} else {
 		data, err := io.ReadAll(response.Body)
 		if err != nil {
-			log.Fatal("Unable to retreive player data")
+			log.Println("Unable to retreive player data")
 			return false, returnedPlayer
 		} else {
 			json.Unmarshal([]byte(data), &returnedPlayer)
@@ -280,9 +333,11 @@ func checkExistingPlayer(id string) (bool, player) {
 	}
 }
 
+// main function is the entry point of the application.
 func main() {
+
 	if err := rootCmd.Execute(); err != nil {
-		log.Fatal(err)
+		log.Println(err)
 	}
 }
 
@@ -295,7 +350,19 @@ func Execute() {
 	}
 }
 
+// init function initializes the configuration and sets up the API base URL.
 func init() {
+	viper.SetConfigName("config")
+	viper.AddConfigPath(".")
+	viper.SetDefault("api.base_url", "http://localhost:8080/")
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatal("Error reading config file:", err)
+	}
+
+	baseURL = viper.GetString("api.base_url")
+
 	rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 	rootCmd.AddCommand(startQuizCmd)
+	rootCmd.AddCommand(getQuestionsCmd)
+	rootCmd.AddCommand(getPlayersCmd)
 }

@@ -1,6 +1,6 @@
 package main
 
-import "example.com/m/QuizTerminal/cmd"
+import "FastTrack/QuizTerminal/cmd"
 
 func main() {
 	cmd.Execute()
