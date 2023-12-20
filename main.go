@@ -1,11 +1,9 @@
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"reflect"
 	"sort"
-	str "strconv"
 
 	"github.com/gin-gonic/gin"
 	_ "github.com/spf13/cobra"
@@ -82,116 +80,77 @@ var emptyPlayer player
 
 func main() {
 	initData()
-	startQuiz()
 	router := gin.Default()
 	router.GET("/players", getPlayers)
+	router.GET("/players/:id", getPlayer)
+	router.GET("/questions/", getQuestions)
+	router.GET("/players-rank/:id", getPlayerRank)
 	router.POST("/players", setPlayer)
-	router.GET("/players/:name", getPlayer)
+	router.PATCH("/players/", updatePlayer)
 	router.Run("localhost:8080")
 }
 
-func startQuiz() {
-	var idInput string
-	var nameInput string
-	var ageInput string
+func updatePlayer(c *gin.Context) {
 	var newPlayer player
-	var retry bool = false
 
-	fmt.Println("Welcome to the Quiz, Kindly enter your ID")
-	fmt.Scan(&idInput)
-	check, newPlayer := checkExistingPlayer(idInput)
-	if check {
-		fmt.Printf("Welcome back %v .", newPlayer.Name)
-		fmt.Println()
-	}
-	if !check {
-		fmt.Println("Kindly enter your name")
-		fmt.Scan(&nameInput)
-		for !retry {
-			fmt.Println("Kindly enter your age")
-			fmt.Scan(&ageInput)
-			convertedAge, err := str.Atoi(ageInput)
-			if err != nil {
-				fmt.Println("Your age input was incorrect.")
-			} else {
-				newPlayer = createPlayer(idInput, nameInput, convertedAge, 0)
-				players = append(players, newPlayer)
-				retry = true
-			}
-		}
-
-	}
-	fmt.Println("Good luck on your Quiz!")
-	fmt.Println()
-	questionQuiz(newPlayer)
-}
-
-func questionQuiz(currentplayer player) {
-	var answersGroup []answer
-	var answerInput answer
-	var input int
-	var check bool = true
-	var score int
-	fmt.Println("Kindly select one answer for each question.")
-
-	for i := 0; i < len(questions); i++ {
-		check = true
-		fmt.Println(questions[i].QuestionText)
-		fmt.Println()
-		for b := 0; b < len(questions[i].Answers); b++ {
-			fmt.Println(b+1, ".", questions[i].Answers[b].AnswerText)
-		}
-		for check {
-			fmt.Scan(&input)
-			if input > len(questions[i].Answers) || input < 0 {
-				fmt.Println("Invalid Answer. Try again")
-			} else {
-				answerInput = createAnswer(questions[i].Answers[input-1].AnswerText, questions[i].Answers[input-1].Valid)
-				answersGroup = append(answersGroup, answerInput)
-				if questions[i].Answers[input-1].Valid {
-					score += (100 / len(questions))
-				}
-				check = false
-			}
-		}
-
-		fmt.Println()
-	}
-
-	fmt.Println("End of Quiz.")
-	fmt.Printf("Your score is %v and your rank is %v.", score, generateRank(score, currentplayer))
-	fmt.Println()
-	fmt.Println("Your answers are : ")
-	for i := 0; i < len(answersGroup); i++ {
-		fmt.Println(answersGroup[i].AnswerText + "," + str.FormatBool(answersGroup[i].Valid))
+	if err := c.BindJSON(&newPlayer); err != nil {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "The value you provided is not valid"})
+		return
 	}
 
 	idx := sort.Search(len(players), func(i int) bool {
-		return string(players[i].Name) >= currentplayer.Name
+		return string(players[i].Id) >= newPlayer.Id
 	})
-	players[idx+1].Score = score
+
+	if idx != len(players) {
+		players[idx] = newPlayer
+		c.IndentedJSON(http.StatusOK, newPlayer)
+	} else {
+		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "User does not exist"})
+		return
+	}
 }
 
-func generateRank(score int, currentplayer player) int {
+func getPlayerRank(c *gin.Context) {
+	var returnedPlayer player
+	inputId := c.Param("id")
+	inputType := reflect.TypeOf(inputId)
 	var rank int = len(players)
 
-	for i := 0; i < len(players); i++ {
-		if score > players[i].Score {
-			if players[i].Id != currentplayer.Id {
-				rank -= 1
+	if reflect.TypeOf(inputType) == reflect.TypeOf(returnedPlayer.Id) {
+		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "The value you provided is not valid"})
+		return
+	}
+
+	idx := sort.Search(len(players), func(i int) bool {
+		return string(players[i].Id) >= inputId
+	})
+
+	if idx != len(players) {
+		returnedPlayer = players[idx]
+		for i := 0; i < len(players); i++ {
+			if returnedPlayer.Score > players[i].Score {
+				if players[i].Id != returnedPlayer.Id {
+					rank -= 1
+				}
 			}
 		}
+
+		c.IndentedJSON(http.StatusOK, rank)
+	} else {
+		c.IndentedJSON(http.StatusNotFound, gin.H{"message": "Player not found"})
+		return
 	}
-	return rank
 }
 
-func checkExistingPlayer(id string) (bool, player) {
-	for i := 0; i < len(players); i++ {
-		if players[i].Id == id {
-			return true, players[i]
-		}
+func getQuestions(c *gin.Context) {
+	returnedQuestions := questions
+
+	if len(questions) == 0 {
+		c.IndentedJSON(http.StatusInternalServerError, gin.H{"message": "There was an issue returning the players"})
+	} else {
+		c.IndentedJSON(http.StatusOK, returnedQuestions)
 	}
-	return false, emptyPlayer
 }
 
 func getPlayers(c *gin.Context) {
@@ -221,21 +180,21 @@ func setPlayer(c *gin.Context) {
 		return
 	}
 
-	c.IndentedJSON(http.StatusCreated, players)
+	c.IndentedJSON(http.StatusCreated, newPlayer)
 }
 
 func getPlayer(c *gin.Context) {
 	var returnedPlayer player
-	inputName := c.Param("name")
-	playertype := reflect.TypeOf(inputName)
+	inputId := c.Param("id")
+	playertype := reflect.TypeOf(inputId)
 
-	if reflect.TypeOf(playertype) == reflect.TypeOf(returnedPlayer.Name) {
+	if reflect.TypeOf(playertype) == reflect.TypeOf(returnedPlayer.Id) {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "The value you provided is not valid"})
 		return
 	}
 
 	for i := 0; i < len(players); i++ {
-		if players[i].Name == inputName {
+		if players[i].Id == inputId {
 			returnedPlayer = players[i]
 			break
 		}
