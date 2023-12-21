@@ -1,0 +1,163 @@
+{
+	"info": {
+		"_postman_id": "83b9e720-b432-494e-b4ad-6acbc6b00813",
+		"name": "Fast Track Collection",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "25604668"
+	},
+	"item": [
+		{
+			"name": "GetPlayers",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{domain}}players",
+					"host": [
+						"{{domain}}players"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GetQuestions",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{domain}}questions",
+					"host": [
+						"{{domain}}questions"
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GetPlayer",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{domain}}players/:id",
+					"host": [
+						"{{domain}}players"
+					],
+					"path": [
+						":id"
+					],
+					"variable": [
+						{
+							"key": "id",
+							"value": "000001M"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "GetPlayerRank",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "{{domain}}players-rank/:id",
+					"host": [
+						"{{domain}}players-rank"
+					],
+					"path": [
+						":id"
+					],
+					"variable": [
+						{
+							"key": "id",
+							"value": "000001M"
+						}
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "SetPlayer",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"id\" : \"241112M\",\r\n    \"name\" : \"Chris\",\r\n    \"age\" : 21,\r\n    \"Score\": 100\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{domain}}players/",
+					"host": [
+						"{{domain}}players"
+					],
+					"path": [
+						""
+					]
+				}
+			},
+			"response": []
+		},
+		{
+			"name": "updatePlayer",
+			"request": {
+				"method": "PATCH",
+				"header": [],
+				"body": {
+					"mode": "raw",
+					"raw": "{\r\n    \"id\" : \"000001M\",\r\n    \"name\" : \"Clayton\",\r\n    \"age\" : 28,\r\n    \"Score\": 100\r\n}",
+					"options": {
+						"raw": {
+							"language": "json"
+						}
+					}
+				},
+				"url": {
+					"raw": "{{domain}}players/",
+					"host": [
+						"{{domain}}players"
+					],
+					"path": [
+						""
+					]
+				}
+			},
+			"response": []
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"exec": [
+					""
+				]
+			}
+		}
+	],
+	"variable": [
+		{
+			"key": "domain",
+			"value": "http://localhost:8080/",
+			"type": "string"
+		}
+	]
+}
