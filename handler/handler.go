@@ -9,25 +9,28 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type player struct {
+type Player struct {
 	Id    string `json:"id"`
 	Name  string `json:"name"`
 	Age   int    `json:"age"`
 	Score int    `json:"score"`
 }
 
-type question struct {
-	QuestionText string
-	Answers      []answer
-}
-
-type answer struct {
+type Answer struct {
 	AnswerText string
 	Valid      bool
 }
 
-func createPlayer(id string, name string, age int, score int) player {
-	p := player{
+type Question struct {
+	QuestionText string
+	Answers      []Answer
+}
+
+var players []Player
+var questions []Question
+
+func createPlayer(id string, name string, age int, score int) Player {
+	p := Player{
 		Id:    id,
 		Name:  name,
 		Age:   age,
@@ -37,19 +40,21 @@ func createPlayer(id string, name string, age int, score int) player {
 	return p
 }
 
-func createQuestion(text string, answer []answer) question {
-	q := question{
+func createQuestion(text string, answer []Answer) Question {
+	q := Question{
 		QuestionText: text,
 		Answers:      answer,
 	}
+
 	return q
 }
 
-func createAnswer(text string, valid bool) answer {
-	a := answer{
+func createAnswer(text string, valid bool) Answer {
+	a := Answer{
 		AnswerText: text,
 		Valid:      valid,
 	}
+
 	return a
 }
 
@@ -60,11 +65,11 @@ func InitData() {
 	players = append(players, createPlayer("000003M", "Emma", 33, 90))
 	players = append(players, createPlayer("000004M", "Paulinha", 30, 50))
 
-	var answersGroupA []answer = []answer{createAnswer("Italian", false), createAnswer("Arabic", false), createAnswer("Maltese", true)}
-	var answersGroupB []answer = []answer{createAnswer("Lira", false), createAnswer("Pound", false), createAnswer("Euro", true)}
-	var answersGroupC []answer = []answer{createAnswer("Mediterranean ", true), createAnswer("Dead Sea", false), createAnswer("Sea of Samsara", false)}
-	var answersGroupD []answer = []answer{createAnswer("three", true), createAnswer("one", false), createAnswer("four", false)}
-	var answersGroupE []answer = []answer{createAnswer("Blue,White and Red", false), createAnswer("White and Red", true), createAnswer("Red and White", false)}
+	var answersGroupA []Answer = []Answer{createAnswer("Italian", false), createAnswer("Arabic", false), createAnswer("Maltese", true)}
+	var answersGroupB []Answer = []Answer{createAnswer("Lira", false), createAnswer("Pound", false), createAnswer("Euro", true)}
+	var answersGroupC []Answer = []Answer{createAnswer("Mediterranean ", true), createAnswer("Dead Sea", false), createAnswer("Sea of Samsara", false)}
+	var answersGroupD []Answer = []Answer{createAnswer("three", true), createAnswer("one", false), createAnswer("four", false)}
+	var answersGroupE []Answer = []Answer{createAnswer("Blue,White and Red", false), createAnswer("White and Red", true), createAnswer("Red and White", false)}
 
 	questions = append(questions, createQuestion("What ls the national language of Malta?", answersGroupA))
 	questions = append(questions, createQuestion("What currency is used in Malta?", answersGroupB))
@@ -74,11 +79,8 @@ func InitData() {
 
 }
 
-var players []player
-var questions []question
-
 func UpdatePlayer(c *gin.Context) {
-	var newPlayer player
+	var newPlayer Player
 
 	if err := c.BindJSON(&newPlayer); err != nil {
 		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "Invalid JSON data. Check the provided player details.", "error": err.Error()})
@@ -99,7 +101,7 @@ func UpdatePlayer(c *gin.Context) {
 }
 
 func GetPlayerRank(c *gin.Context) {
-	var returnedPlayer player
+	var returnedPlayer Player
 	inputId := c.Param("id")
 	rank := len(players)
 
@@ -152,7 +154,7 @@ func GetPlayers(c *gin.Context) {
 }
 
 func SetPlayer(c *gin.Context) {
-	var newPlayer player
+	var newPlayer Player
 	currentPlayerBase := len(players)
 
 	if err := c.BindJSON(&newPlayer); err != nil {
@@ -171,7 +173,7 @@ func SetPlayer(c *gin.Context) {
 }
 
 func GetPlayer(c *gin.Context) {
-	var returnedPlayer player
+	var returnedPlayer Player
 	inputId := c.Param("id")
 
 	if reflect.TypeOf(inputId) != reflect.TypeOf(returnedPlayer.Id) {
